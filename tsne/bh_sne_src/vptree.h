@@ -87,18 +87,100 @@ public:
     double x(int d) const { return _x[d]; }
 };
 
-double euclidean_distance(const DataPoint &t1, const DataPoint &t2) {
-    double dd = .0;
-    double* x1 = t1._x;
-    double* x2 = t2._x;
-    double diff;
-    for(int d = 0; d < t1._D; d++) {
-        diff = (x1[d] - x2[d]);
-        dd += diff * diff;
-    }
-    return sqrt(dd);
+//double euclidean_distance(const DataPoint &t1, const DataPoint &t2) {
+//    double dd = .0;
+//    double* x1 = t1._x;
+//    double* x2 = t2._x;
+//    double diff;
+//    for(int d = 0; d < t1._D; d++) {
+//        diff = (x1[d] - x2[d]);
+//        dd += diff * diff;
+//    }
+//    return sqrt(dd);
+//}
+
+double distance(double a, double b) {
+	return std::fabs(a - b);
 }
 
+double erp(const DataPoint &t1, const DataPoint &t2, const int sigma, const double g)
+{
+	
+	const double gap = 0.0;
+	const double radiusPercentage = 1.0;
+	const double cutOff = std::numeric_limits<double>::infinity();
+	
+	double* x1 = t1._x;
+	double* x2 = t2._x;
+	
+	int n = static_cast<int>(t2._D);
+	int n1 = n + 1;
+	int radius = n * radiusPercentage;
+	std::vector<double> current(n1);
+	std::vector<double> prev(n1);
+	std::vector<double> db(n);
+	int start, end;
+	double min, da, x, y, z;
+	
+	
+	//The (0,0) position of the matrix is filled
+	current[0] = 0.0;
+	prev[0] = 0.0;
+	
+	//The edges of the matrix are filled.
+	for(int i = 1; i < n1; i++)
+	{
+		db[i - 1] = distance(x2[i - 1], gap);
+		prev[i] = prev[i - 1] + db[i - 1];
+	}
+	
+	for (int i = 0; i < t1._D; i++)
+	{
+		start = std::max(0, i - radius);
+		end = std::min(n - 1, i + radius);
+		
+		da = distance(x1[i], gap);
+		current[0] = current[0] + da;
+		min = std::numeric_limits<double>::infinity();
+		
+		for (int j = start; j <= end; j++)
+		{
+			x = prev[j + 1] + da;
+			y = current[j] + db[j];
+			z = prev[j] + distance(x1[i], x2[j]);
+			
+			current[j + 1] = std::min(x, std::min(y, z));
+			if (current[j + 1] < min) {
+				min = current[j + 1];
+			}
+		}
+		
+		if (min > cutOff) {
+			return std::numeric_limits<double>::infinity();
+		}
+		
+		for (int i = 0; i <= n1; i++)
+		{
+			prev.insert(prev.begin()+i, current[i]);
+		}
+		
+	}
+	
+	if (current[n] > cutOff) {
+		return std::numeric_limits<double>::infinity();
+	}
+	
+	return current[n];
+}
+
+double euclidean_distance(const DataPoint &t1, const DataPoint &t2)
+{
+	double dd = 0.0;
+	
+	dd = erp(t1, t2, 0, 0.0);
+	
+	return dd;
+}
 
 template<typename T, double (*distance)( const T&, const T& )>
 class VpTree
